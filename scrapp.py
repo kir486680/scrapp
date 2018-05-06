@@ -1,41 +1,67 @@
 import requests
 from bs4 import BeautifulSoup
-from tqdm import *
-import io
+import csv
+from multiprocessing import Pool
 
 class flat:
-    def __init__(self , page, main_class , child_class, tag_class):
+    def __init__(self , page, main_class , child_class, second_page,  link_new):
         self.page = page
         self.main_class = main_class
         self.child_class = child_class
-        self.tag_class = tag_class
-    def sort_encode(self , first_class , arr):
-
-        for i in  tqdm(range(len(first_class))):
-            if self.tag_class == True:
-                name = first_class[i].find(class_=self.child_class)
-            else :
-                name = first_class[i].find(self.child_class)
-            main = (name.get_text())
-            main = main.replace(u'\xa0', u' ')
-            main = main.replace(u'\n', u' ')
-            main = str(main)
-            arr.append(main)
-    def save(self, new_arr):
-        with open('hello.txt' , "w", encoding="utf-8" ) as f:
-            f.write(new_arr)
+        self.link_new = link_new
+        self.second_page = second_page
+        print(link_new)
     def find(self):
-        page_new = requests.get(self.page)
-        soup = BeautifulSoup(page_new.content, 'html.parser')
-        first_class = soup.find_all(class_=self.main_class)
         arr = []
-        self.sort_encode(first_class , arr)
-        arr = [x.strip(' ') for x in arr]
-        arr = ''.join(arr)
-        self.save(arr)
+        new_arr = []
+
+        page_new = requests.get(self.page)
+        encoding = page_new.encoding if 'charset' in page_new.headers.get('content-type', '').lower() else None
+        soup = BeautifulSoup(page_new.content, "lxml" , from_encoding=encoding)
+
+        first_class = soup.find_all(class_=self.main_class)
+        self.children_loop_format(soup, first_class , arr)
+        for i in range (len(arr)):
+            arr[i] = self.link_new+arr[i]
+
+        self.find_in_each( arr , new_arr)
+
+    def children_loop_format(self, first_class, soup , arr):
+
+        for a in first_class.find_all('a',class_=self.child_class, href=True):
+            name = a['href']
+            arr.append(name)
+    def find_in_each(self , arr, new_arr ):
+
+        for i in range(len(arr)):
+            print(arr[i])
+            page = requests.get(arr[i])
+            soup = BeautifulSoup(page.content, 'html.parser')
+            first_class = soup.find_all(self.second_page )
+
+            for a in first_class:
+                a = a.get_text()
+                a = a.replace(u'\xa0', u' ')
+                a = a.splitlines()
+
+                new_arr.append(a)
 
 
-new_flat = flat('https://dom.ria.com/ru/search/?#new_search=&category=1&realty_type=2&operation_type=1&state_id=10&city_id%5B15%5D=10&metro_station_id%5B23%5D=13&characteristic%5B209%5D%5Bfrom%5D=&characteristic%5B209%5D%5Bto%5D=&characteristic%5B214%5D%5Bfrom%5D=&characteristic%5B214%5D%5Bto%5D=&characteristic%5B216%5D%5Bfrom%5D=&characteristic%5B216%5D%5Bto%5D=&characteristic%5B218%5D%5Bfrom%5D=&characteristic%5B218%5D%5Bto%5D=&characteristic%5B227%5D%5Bfrom%5D=&characteristic%5B227%5D%5Bto%5D=&characteristic%5B228%5D%5Bfrom%5D=&characteristic%5B228%5D%5Bto%5D=&characteristic%5B1607%5D%5Bfrom%5D=&characteristic%5B1607%5D%5Bto%5D=&characteristic%5B1608%5D%5Bfrom%5D=&characteristic%5B1608%5D%5Bto%5D=&characteristic%5B234%5D%5Bfrom%5D=&characteristic%5B234%5D%5Bto%5D=&characteristic%5B247%5D=252&characteristic%5B265%5D=0&characteristic%5B242%5D=239&sort=inspected_sort&period=0&realty_id_only=&with_phone=&date_from=&date_to=', 'wrap_desc' , 'blue' , True)
-new_flat.find()
-second_flat = flat('https://rieltor.ua/flats-sale/%D0%94%D0%B5%D0%BC%D0%B8%D0%B5%D0%B2%D1%81%D0%BA%D0%B0%D1%8F-o340/' , 'catalog-item__title' , 'a' , False)
-second_flat.find()
+
+
+            with open('flat.txt' , 'a',encoding='utf-8')as f :
+                writer = csv.writer(f)
+                for i in range (len(arr)):
+                    str_arr = ', '.join(map(str, new_arr))
+                    str_arr = str_arr.replace(' ' , '')
+                    str_arr = str_arr.replace(']' , '')
+                    str_arr = str_arr.replace('[' , '')
+                    str_arr = str_arr.replace('↓' , '')
+
+                    writer.writerow([arr[i]  , str_arr])
+def main():
+    new_flat = flat('https://dom.ria.com/ru/%D0%9A%D0%B0%D1%82%D0%B0%D0%BB%D0%BE%D0%B3/%D0%9F%D1%80%D0%BE%D0%B4%D0%B0%D0%B6%D0%B0/%D0%9A%D0%B2%D0%B0%D1%80%D1%82%D0%B8%D1%80%D1%8B/%D0%9A%D0%B2%D0%B0%D1%80%D1%82%D0%B8%D1%80%D0%B0/%D0%9E%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D1%8C/%D0%9A%D0%B8%D0%B5%D0%B2%D1%81%D0%BA%D0%B0%D1%8F/%D0%93%D0%BE%D1%80%D0%BE%D0%B4/%D0%9A%D0%B8%D0%B5%D0%B2/%D0%9C%D0%B5%D1%82%D1%80%D0%BE/%D0%94%D0%B5%D0%BC%D0%B8%D0%B5%D0%B2%D1%81%D0%BA%D0%B0%D1%8F/?page=5', 'wrap_desc' , 'blue' , 'dd' , 'https://dom.ria.com' )
+    new_flat.find()
+
+if __name__ == "__main__":
+    main()
