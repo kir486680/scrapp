@@ -2,7 +2,6 @@ import smtplib
 import requests
 from bs4 import BeautifulSoup
 import csv
-import numpy as np
 import send_attach
 class flat:
     def __init__(self , page, main_class , child_class,  link_new , mail, password):
@@ -46,7 +45,6 @@ class flat:
     def find_in_each(self , arr, new_arr):
 
         for i in range(len(arr)):
-            names = []
             print(arr[i])
             page = requests.get(arr[i])
             soup = BeautifulSoup(page.content, 'html.parser')
@@ -58,9 +56,7 @@ class flat:
                     writer = csv.writer(f)
                     if 'Голосеевская' in a:
                         writer.writerow([arr[i] , a,])
-
-
-        send_attach.send(email , password)
+        send_attach.send(self.mail , self.password)
 
 
 
